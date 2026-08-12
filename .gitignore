@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+**/node_modules/
+.pnpm-store/
+
+# Build & Compilation outputs
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment & local credentials
+.env
+.env.local
+.env.*.local
+
+# IDE & Editor files
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# OS System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+
+# Yapbook Benchmark Data & References (privacy & external repos)
+benchmarks/*/data/*
+!benchmarks/*/data/.gitkeep
+benchmarks/*/references/
+
+# Temporary & Cache files
+.cache/
+.tmp/
+temp/

@@ -374,6 +374,16 @@ Each prompt is a separate, testable, iterable unit. Don't try to do everything i
 - **Contradiction detection:** If a new observation contradicts established memory, flag it for resolution rather than silently overwriting
 - **Bias awareness:** The LLM might over-index on dramatic or negative events. Balance mechanisms needed
 
+### 3.6 Benchmark-Validated Pipeline Parameters
+
+Based on empirical benchmark testing (`benchmarks/chat-stats/conclusion.md`) across a real ~126K message chat:
+
+- **Token Estimator Baseline:** **5.5 tokens / message** (measured 5.1 tokens/msg mean).
+- **Session Segmentation Default:** **30-minute inactivity gap** (~120 msgs/session average, producing ~800 sessions per 100K messages).
+- **Context Window Target:** Minimum **8K token context window** (natively accommodates 97.4% of sessions without chunking; 93.8% fit in 4K).
+- **Multilingual Code-Switching Requirement:** Hinglish code-switching accounts for ~37.8% of messages. LLM models must have verified code-switching capability (Qwen 2.5 7B/8B, Gemma 2 9B, Llama 3.1 8B).
+- **Dual-Tier Session Filtering:** Strip micro-sessions (< 5 msgs) and low-richness sessions before prompt construction, achieving a **~42% skip/fast-track ratio**.
+
 ---
 
 ## Phase 4 — Comic Generation Pipeline

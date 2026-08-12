@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yapbook Chat Benchmark — WhatsApp Analyzer & Session Performance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-icon">📊</div>
+        <div>
+          <h1>Yapbook Chat Benchmark</h1>
+          <p class="subtitle" id="chat-filename">Loading chat data...</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="badge" id="chat-lifespan">--</span>
+        <button id="refresh-btn" class="btn btn-secondary">🔄 Refresh Data</button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="overview">Overview</button>
+      <button class="nav-tab" data-tab="temporal">Temporal Patterns</button>
+      <button class="nav-tab" data-tab="members">Members</button>
+      <button class="nav-tab" data-tab="interactions">Interactions</button>
+      <button class="nav-tab highlight-tab" data-tab="sessions">Session Experiments ⭐</button>
+      <button class="nav-tab" data-tab="pipeline">LLM Pipeline Readiness</button>
+      <button class="nav-tab" data-tab="signals">Comic & Memory Signals</button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- TAB 1: OVERVIEW -->
+      <section id="tab-overview" class="tab-content active">
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Messages</div>
+            <div class="kpi-value" id="kpi-total-messages">--</div>
+            <div class="kpi-sub" id="kpi-system-msgs">-- system msgs</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Unique Members</div>
+            <div class="kpi-value" id="kpi-members">--</div>
+            <div class="kpi-sub">Active participants</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Active Days</div>
+            <div class="kpi-value" id="kpi-active-days">--</div>
+            <div class="kpi-sub" id="kpi-avg-per-day">-- msgs/day avg</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Chat Lifespan</div>
+            <div class="kpi-value" id="kpi-duration">--</div>
+            <div class="kpi-sub" id="kpi-date-range">--</div>
+          </div>
+        </div>
+
+        <div class="charts-grid two-col">
+          <div class="chart-card wide">
+            <h3>Messages Over Time (Daily Volume)</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-messages-over-time"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-grid two-col">
+          <div class="chart-card">
+            <h3>Messages per Member</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-member-breakdown"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>Message Types Breakdown</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-type-breakdown"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: TEMPORAL PATTERNS -->
+      <section id="tab-temporal" class="tab-content">
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Busiest Day</div>
+            <div class="kpi-value highlight" id="kpi-busiest-day">--</div>
+            <div class="kpi-sub" id="kpi-busiest-count">-- msgs</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Quietest Day</div>
+            <div class="kpi-value" id="kpi-quietest-day">--</div>
+            <div class="kpi-sub" id="kpi-quietest-count">-- msgs</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Longest Active Streak</div>
+            <div class="kpi-value success" id="kpi-longest-streak">--</div>
+            <div class="kpi-sub" id="kpi-streak-range">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Longest Silence Gap</div>
+            <div class="kpi-value warning" id="kpi-longest-silence">--</div>
+            <div class="kpi-sub" id="kpi-silence-range">--</div>
+          </div>
+        </div>
+
+        <div class="charts-grid two-col">
+          <div class="chart-card">
+            <h3>Hour-of-Day Distribution (UTC)</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-hourly"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>Day-of-Week Distribution</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-dayofweek"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Activity Heatmap (Day × Hour)</h3>
+          <div id="heatmap-grid" class="heatmap-grid"></div>
+        </div>
+      </section>
+
+      <!-- TAB 3: MEMBERS -->
+      <section id="tab-members" class="tab-content">
+        <div class="member-tab-header">
+          <label for="member-select">Select Member:</label>
+          <select id="member-select" class="custom-select"></select>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Messages</div>
+            <div class="kpi-value" id="mem-total-msgs">--</div>
+            <div class="kpi-sub" id="mem-share">-- share</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Avg Length / Words</div>
+            <div class="kpi-value" id="mem-avg-len">--</div>
+            <div class="kpi-sub" id="mem-short-rate">-- ≤ 3 words</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Emoji Count</div>
+            <div class="kpi-value" id="mem-emoji-count">--</div>
+            <div class="kpi-sub" id="mem-top-emoji">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Session Initiations</div>
+            <div class="kpi-value" id="mem-init-count">--</div>
+            <div class="kpi-sub" id="mem-avg-tokens">-- avg tokens</div>
+          </div>
+        </div>
+
+        <div class="charts-grid two-col">
+          <div class="chart-card">
+            <h3>Hourly Activity Pattern for Selected Member</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-member-hourly"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>Top 10 Most Used Words</h3>
+            <div class="list-container" id="member-top-words-list"></div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Member Comparison Table</h3>
+          <div class="table-responsive">
+            <table class="data-table" id="table-members-comparison">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Messages</th>
+                  <th>Share %</th>
+                  <th>Avg Chars</th>
+                  <th>Avg Words</th>
+                  <th>Short Msg %</th>
+                  <th>Emoji Total</th>
+                  <th>Avg Tokens</th>
+                  <th>Active Days</th>
+                  <th>Initiations</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: INTERACTIONS -->
+      <section id="tab-interactions" class="tab-content">
+        <div class="charts-grid two-col">
+          <div class="chart-card">
+            <h3>Conversation Starters (30-min gap sessions)</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-conversation-starters"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>Ghosting Index (Replies Received - Sent)</h3>
+            <div class="table-responsive">
+              <table class="data-table" id="table-ghosters">
+                <thead>
+                  <tr>
+                    <th>Member</th>
+                    <th>Net Ghost Index</th>
+                    <th>Replies Received</th>
+                    <th>Replies Sent</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Reply Matrix Heatmap (A replied to B within 5 min)</h3>
+          <div id="reply-matrix-grid" class="matrix-grid-container"></div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Chat Milestones Timeline</h3>
+          <div class="timeline-list" id="milestones-timeline"></div>
+        </div>
+      </section>
+
+      <!-- TAB 5: SESSION EXPERIMENTS -->
+      <section id="tab-sessions" class="tab-content">
+        <div class="recommendation-banner">
+          <div class="rec-icon">🎯</div>
+          <div>
+            <h3>Architecture Default: 30-Minute Inactivity Gap</h3>
+            <p id="architecture-validation-note">Loading validation findings...</p>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">30-min Total Sessions</div>
+            <div class="kpi-value highlight" id="sess-total-count">--</div>
+            <div class="kpi-sub" id="sess-filterable">-- filterable (≥5 msgs)</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Avg Messages / Session</div>
+            <div class="kpi-value" id="sess-avg-msgs">--</div>
+            <div class="kpi-sub" id="sess-median-msgs">Median: --</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">RTX 4070 Processing Time</div>
+            <div class="kpi-value success" id="sess-rtx4070-time">--</div>
+            <div class="kpi-sub">Optimized pipeline</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Estimated Cloud Cost</div>
+            <div class="kpi-value" id="sess-cloud-cost">--</div>
+            <div class="kpi-sub">GPT-4.1-nano pricing</div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Session Experiments Comparison Table</h3>
+          <div class="table-responsive">
+            <table class="data-table" id="table-session-experiments">
+              <thead>
+                <tr>
+                  <th>Strategy</th>
+                  <th>Threshold</th>
+                  <th>Sessions</th>
+                  <th>Avg Msgs</th>
+                  <th>Median Msgs</th>
+                  <th>&lt; 5 Msgs</th>
+                  <th>&gt; 100 Msgs</th>
+                  <th>Avg Duration</th>
+                  <th>Avg Participants</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="charts-grid two-col">
+          <div class="chart-card">
+            <h3>Session Count vs Inactivity Threshold</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-session-count-curve"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>Avg Messages per Session vs Threshold</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-avg-msgs-curve"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Session Drilldown Modal / Container -->
+        <div id="session-drilldown-card" class="chart-card drilldown-card hidden">
+          <div class="card-header-with-close">
+            <h3 id="drilldown-title">Session Drilldown</h3>
+            <button id="close-drilldown-btn" class="btn btn-small">✕ Close</button>
+          </div>
+          <div class="table-responsive max-height-400">
+            <table class="data-table" id="table-session-drilldown">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Start Time</th>
+                  <th>End Time</th>
+                  <th>Duration</th>
+                  <th>Messages</th>
+                  <th>Participants</th>
+                  <th>Estimated Tokens</th>
+                  <th>Noise Ratio</th>
+                  <th>Preview</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: LLM PIPELINE READINESS -->
+      <section id="tab-pipeline" class="tab-content">
+        <div class="pipeline-comparison-grid">
+          <div class="comparison-card">
+            <h4>Assumed vs Measured Message Tokens</h4>
+            <div class="comp-row">
+              <span>Assumed (docs/processing-times.md):</span>
+              <strong>15.0 tokens / msg</strong>
+            </div>
+            <div class="comp-row">
+              <span>Measured (Actual Chat Data):</span>
+              <strong class="text-success" id="measured-tokens-per-msg">-- tokens / msg</strong>
+            </div>
+            <div class="comp-row">
+              <span>Variance Impact:</span>
+              <span class="badge badge-success" id="token-variance-badge">--</span>
+            </div>
+          </div>
+          <div class="comparison-card">
+            <h4>Context Window Fit (30-min sessions)</h4>
+            <div class="comp-row">
+              <span>Fits in 4K Context:</span>
+              <strong id="fit-4k">--</strong>
+            </div>
+            <div class="comp-row">
+              <span>Fits in 8K Context:</span>
+              <strong id="fit-8k">--</strong>
+            </div>
+            <div class="comp-row">
+              <span>Fits in 16K Context:</span>
+              <strong id="fit-16k">--</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-grid two-col">
+          <div class="chart-card">
+            <h3>Message Shape Distribution</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-shape-dist"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>Language Distribution (Hinglish Flag)</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-lang-dist"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-grid two-col">
+          <div class="chart-card">
+            <h3>Context Window Simulation (Estimated Input Tokens per Session)</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-context-sim"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>Session Richness Distribution & 25th Percentile Filter</h3>
+            <div class="chart-wrapper">
+              <canvas id="chart-session-richness"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 7: COMIC & MEMORY SIGNALS -->
+      <section id="tab-signals" class="tab-content">
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Rapid Exchanges (Comic Seeds)</div>
+            <div class="kpi-value highlight" id="sig-rapid-count">--</div>
+            <div class="kpi-sub">3+ members in &lt;2 min</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Event Anchor Messages</div>
+            <div class="kpi-value" id="sig-event-count">--</div>
+            <div class="kpi-sub">Trips, parties, exams</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Repeated Inside Phrases</div>
+            <div class="kpi-value success" id="sig-phrases-count">--</div>
+            <div class="kpi-sub">Candidate inside jokes</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Mention Graph Density</div>
+            <div class="kpi-value" id="sig-mention-density">--</div>
+            <div class="kpi-sub">Direct social ties</div>
+          </div>
+        </div>
+
+        <div class="charts-grid two-col">
+          <div class="chart-card">
+            <h3>Top Inside Jokes / Repeated Phrases</h3>
+            <div class="table-responsive max-height-300">
+              <table class="data-table" id="table-repeated-phrases">
+                <thead>
+                  <tr>
+                    <th>Phrase</th>
+                    <th>Occurrences</th>
+                    <th>Sessions</th>
+                    <th>Members</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="chart-card">
+            <h3>Monologues (Storytelling / Rants)</h3>
+            <div class="table-responsive max-height-300">
+              <table class="data-table" id="table-monologues">
+                <thead>
+                  <tr>
+                    <th>Sender</th>
+                    <th>Msgs</th>
+                    <th>Duration</th>
+                    <th>Preview</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Detected Event Anchor Messages (Narrative Seeds)</h3>
+          <div class="table-responsive max-height-300">
+            <table class="data-table" id="table-event-messages">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Sender</th>
+                  <th>Keyword</th>
+                  <th>Content</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

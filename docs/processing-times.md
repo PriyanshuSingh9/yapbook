@@ -1,44 +1,23 @@
 # Yapbook — Processing Time Calculations
 
-> Estimating wall-clock time across the full pipeline for 50K → 10M messages.
+> Estimating wall-clock time across the full pipeline for 50K → 1M messages, updated with empirical benchmark data from `benchmarks/chat-stats/conclusion.md`.
 
 ---
 
-## Corrections to Architecture Doc
+## Benchmark-Validated Assumptions
 
-Before the numbers — addressing your two points:
+Empirical testing on a real ~126K WhatsApp group chat (`WhatsApp Chat with आंतरिक मित्र मंडल`) produced the following validated metrics, superseding earlier estimates:
 
-### 1. No Media in v1
-
-Agreed. Dropping media support from v1 removes:
-- Media Extractor & Cataloger (entire component)
-- Thumbnail generation
-- Media-to-message linking
-- Media type classification
-- Large file handling during archive extraction
-
-The input becomes: **a single `.txt` file inside a `.zip`**. This massively simplifies Phase 1. The parser only needs to handle text, links, and system messages. `<Media omitted>` lines get flagged but not resolved.
-
-### 2. Sender Names Are Stable
-
-You're right — WhatsApp snapshots all contact names **at export time**, so "Priyanshu" is "Priyanshu" from the first message to the last. The complex sender normalization / alias merging I described is unnecessary.
-
-The only edge case remaining is the **exporter's own messages**, which may appear without a name prefix or with a phone number depending on platform/version. This is a single mapping the user confirms at import time, not an ongoing resolution problem.
-
----
-
-## Assumptions
-
-Before running numbers, establishing the key variables:
-
-| Variable | Value | Rationale |
-|----------|-------|-----------|
-| Avg tokens per WhatsApp message | **15 tokens** | WhatsApp messages are short. "haha ok coming in 5" = 7 tokens. "bro did you see what happened at the party last night that was insane 😂😂" = 20 tokens. 15 is a reasonable mean. |
-| Avg messages per session | **50 messages** | Using 30-min inactivity gap. Active bursts average 50 msgs, ranging from 5 (quick exchange) to 300+ (heated debate). |
-| Session overhead (system prompt + memory context) | **4,000 tokens** | ~500 tokens system prompt + ~3,500 tokens memory context (compressed profiles, recent summaries, relationship snapshot). |
-| LLM output per session | **600 tokens** | Session summary (~100), key events (~150), member observations (~200), relationship notes (~100), culture flags (~50). |
-| Periodic synthesis frequency | **Every 50 sessions** | Narrative layer synthesis (arcs, eras) — heavier LLM call. |
-| Synthesis output | **2,000 tokens** | Longer, more reflective generation. |
+| Variable | Initial Assumption | Empirical Benchmark Value | Impact |
+|----------|-------------------|--------------------------|--------|
+| **Avg tokens per message** | 15.0 tokens | **5.5 tokens** | **-63% input tokens** — Chat messages are short, rapid banter. |
+| **Avg messages per session (30-min)** | 50 messages | **120 messages** | Messages arrive in dense bursts rather than sparse exchanges. |
+| **Session count per 100K msgs** | ~2,000 sessions | **~800 sessions** | **-60% fewer sessions** to summarize (1,026 for 126K msgs). |
+| **Session overhead** | 4,000 tokens | **4,000 tokens** | System prompt + compressed profiles + recent summaries. |
+| **LLM output per session** | 600 tokens | **600 tokens** | Summary + key events + observations + culture flags. |
+| **Filterable sessions (< 5 msgs)** | ~10–15% | **28.6%** | **28.6% of sessions** carry negligible content. |
+| **Noise message ratio** | ~20% | **35.7%** | Single-word, emoji-only, or media placeholders. |
+| **Combined skip/fast-track ratio** | — | **~42%** | Low message count + low richness filtering. |
 
 ---
 
@@ -48,15 +27,14 @@ Before running numbers, establishing the key variables:
 
 **Operation:** Read `.txt` file, regex-match message lines, build structured message objects.
 
-This is pure text processing — CPU-bound, single-threaded is fine.
+Pure CPU-bound text processing.
 
 | Messages | Raw Text Size | Parse Time |
 |----------|--------------|------------|
-| 50K | ~4 MB | < 1 second |
-| 100K | ~8 MB | ~1 second |
-| 500K | ~40 MB | ~3 seconds |
-| 1M | ~80 MB | ~5 seconds |
-| 10M | ~800 MB | ~30-45 seconds |
+| 50K | ~3 MB | < 1 second |
+| 100K | ~6 MB | ~1 second |
+| 500K | ~30 MB | ~2-3 seconds |
+| 1M | ~60 MB | ~4-5 seconds |
 
 **Bottleneck?** No. Entirely negligible.
 
@@ -64,59 +42,47 @@ This is pure text processing — CPU-bound, single-threaded is fine.
 
 ### Stage 2: Analytics
 
-**Operation:** O(n) passes over the message array computing metrics — word frequencies, temporal distributions, reply chains, etc.
+**Operation:** O(n) passes over the message array computing volume, temporal, social, language, and signal metrics.
 
-Multiple independent metric calculators, each doing a single pass. Can be parallelized across CPU cores.
+Can be parallelized across CPU cores.
 
 | Messages | Compute Time | Notes |
 |----------|-------------|-------|
-| 50K | ~2 seconds | Trivial |
-| 100K | ~4 seconds | Trivial |
-| 500K | ~15 seconds | Word frequency maps get large |
-| 1M | ~30 seconds | HashMap overhead grows |
-| 10M | ~3-5 minutes | Memory pressure becomes a factor; may need streaming |
+| 50K | ~1-2 seconds | Trivial |
+| 100K | ~3-4 seconds | Benchmark measured 3.2s for 126K msgs |
+| 500K | ~12-15 seconds | HashMap overhead grows |
+| 1M | ~25-30 seconds | Fast single-pass execution |
 
-**Bottleneck?** No. Visualization rendering adds a few seconds on top but is also negligible.
+**Bottleneck?** No. Trivial compute overhead.
 
 ---
 
 ### Stage 3: Session Segmentation
 
-#### Strategy A — Inactivity Gap (recommended for v1)
+#### Strategy: Inactivity Gap (30-min Default)
 
-**Operation:** Linear scan, break when `gap > threshold`. Pure timestamp comparison.
+Linear scan, break when `gap > 30 min`.
 
-| Messages | Sessions Produced | Time |
-|----------|------------------|------|
-| 50K | ~1,000 | < 1 second |
-| 100K | ~2,000 | < 1 second |
-| 500K | ~10,000 | ~1 second |
-| 1M | ~20,000 | ~2 seconds |
-| 10M | ~200,000 | ~10 seconds |
+| Messages | Estimated Sessions Produced | Time |
+|----------|----------------------------|------|
+| 50K | ~400 | < 1 second |
+| 100K | ~800 | < 1 second |
+| 500K | ~4,000 | ~1 second |
+| 1M | ~8,000 | ~2 seconds |
 
-#### Strategy B — Embedding-Based Topic Drift (future enhancement)
-
-If we add topic-aware segmentation using a local embedding model (e.g., `all-MiniLM-L6-v2`):
-
-| Hardware | Embedding Speed | 50K msgs | 1M msgs | 10M msgs |
-|----------|----------------|----------|---------|----------|
-| GPU (RTX 3060+) | ~3,000 emb/s | 17s | 5.5 min | 55 min |
-| CPU (modern 8-core) | ~300 emb/s | 2.7 min | 55 min | 9.2 hrs |
-| Apple Silicon M2 | ~800 emb/s | 1 min | 21 min | 3.5 hrs |
-
-**Bottleneck?** Strategy A: no. Strategy B: moderate, especially on CPU at high message counts. Worth deferring to v2.
+**Bottleneck?** No.
 
 ---
 
 ### Stage 4: LLM Memory Processing — THE BOTTLENECK
 
-This is where the time lives. Let's break it down precisely.
+This is where the wall-clock time lives.
 
-#### Token Budget Per Session
+#### Empirical Token Budget Per Session (30-min Gap)
 
 ```
 ┌──────────────────────────────────────────────┐
-│           INPUT TOKENS (~4,750)              │
+│           INPUT TOKENS (~4,660)              │
 │                                              │
 │  System Prompt ................ 500 tokens   │
 │  Memory Context:                             │
@@ -124,7 +90,7 @@ This is where the time lives. Let's break it down precisely.
 │    - Recent session summaries (3) .. 600     │
 │    - Relationship snapshot ......... 800     │
 │    - Group culture notes ........... 600     │
-│  Session Messages (50 × 15) ....... 750     │
+│  Session Messages (120 × 5.5) ..... 660     │
 │                                              │
 ├──────────────────────────────────────────────┤
 │           OUTPUT TOKENS (~600)               │
@@ -138,9 +104,9 @@ This is where the time lives. Let's break it down precisely.
 └──────────────────────────────────────────────┘
 ```
 
-#### LLM Inference Speeds — Real-World Benchmarks
+#### LLM Inference Speeds — Benchmarks
 
-These are realistic speeds for **quantized models via ollama/llama.cpp** under sustained load:
+Realistic throughput for **quantized models via ollama / llama.cpp**:
 
 | Model | Hardware | Prefill (tok/s) | Decode (tok/s) |
 |-------|----------|:-:|:-:|
@@ -149,227 +115,117 @@ These are realistic speeds for **quantized models via ollama/llama.cpp** under s
 | **Llama 3.1 8B Q4** | Apple M2 Pro (16GB) | 800 | 35 |
 | **Llama 3.1 8B Q4** | CPU-only (16-core) | 100 | 10 |
 | **Qwen 2.5 14B Q4** | RTX 4070 (12GB) | 1,400 | 40 |
-| **Qwen 2.5 14B Q4** | RTX 4090 (24GB) | 2,800 | 55 |
-| **Llama 3.1 70B Q4** | RTX 4090 + CPU offload | 200 | 12 |
-| **Llama 3.1 70B Q4** | 2× RTX 4090 | 600 | 22 |
-
-> [!IMPORTANT]
-> **Decode speed is the dominant factor**, not prefill. Generating 600 output tokens at 40 tok/s = 15 seconds. Prefilling 4,750 input tokens at 1,200 tok/s = 4 seconds. The output generation is 3-4× slower per session than input processing.
 
 #### Per-Session Processing Time
 
-| Hardware | Model | Prefill Time | Decode Time | **Total/Session** |
+| Hardware | Model | Prefill Time (4,660 tok) | Decode Time (600 tok) | **Total/Session** |
 |----------|-------|:--:|:--:|:--:|
-| RTX 4070 | 8B | 1.9s | 9.2s | **11.1s** |
-| RTX 3060 | 8B | 4.0s | 15.0s | **19.0s** |
-| Apple M2 Pro | 8B | 5.9s | 17.1s | **23.0s** |
-| CPU-only | 8B | 47.5s | 60.0s | **107.5s** |
-| RTX 4090 | 14B | 1.7s | 10.9s | **12.6s** |
-| RTX 4070 | 14B | 3.4s | 15.0s | **18.4s** |
-| RTX 4090 + offload | 70B | 23.8s | 50.0s | **73.8s** |
-
-#### Raw Processing Times (No Optimization)
-
-Every session gets a full LLM call. No batching, no filtering.
-
-**8B Model — RTX 4070 (11.1s/session):**
-
-| Messages | Sessions | Wall Time | Human Time |
-|----------|:--:|:--:|:--|
-| 50K | 1,000 | 11,100s | **3.1 hours** |
-| 100K | 2,000 | 22,200s | **6.2 hours** |
-| 500K | 10,000 | 111,000s | **30.8 hours** (1.3 days) |
-| 1M | 20,000 | 222,000s | **61.7 hours** (2.6 days) |
-| 10M | 200,000 | 2,220,000s | **616.7 hours** (25.7 days) |
-
-**8B Model — RTX 3060 (19.0s/session):**
-
-| Messages | Sessions | Wall Time | Human Time |
-|----------|:--:|:--:|:--|
-| 50K | 1,000 | 19,000s | **5.3 hours** |
-| 100K | 2,000 | 38,000s | **10.6 hours** |
-| 500K | 10,000 | 190,000s | **52.8 hours** (2.2 days) |
-| 1M | 20,000 | 380,000s | **105.6 hours** (4.4 days) |
-| 10M | 200,000 | 3,800,000s | **1,055.6 hours** (44 days) |
-
-**8B Model — CPU Only (107.5s/session):**
-
-| Messages | Sessions | Wall Time | Human Time |
-|----------|:--:|:--:|:--|
-| 50K | 1,000 | 107,500s | **29.9 hours** (1.2 days) |
-| 100K | 2,000 | 215,000s | **59.7 hours** (2.5 days) |
-| 500K | 10,000 | 1,075,000s | **298.6 hours** (12.4 days) |
-| 1M+ | — | — | **Infeasible** |
-
-**14B Model — RTX 4090 (12.6s/session):**
-
-| Messages | Sessions | Wall Time | Human Time |
-|----------|:--:|:--:|:--|
-| 50K | 1,000 | 12,600s | **3.5 hours** |
-| 100K | 2,000 | 25,200s | **7.0 hours** |
-| 500K | 10,000 | 126,000s | **35.0 hours** (1.5 days) |
-| 1M | 20,000 | 252,000s | **70.0 hours** (2.9 days) |
-
-> [!CAUTION]
-> At 10M messages, even the fastest local setup takes **nearly a month** of continuous processing. 10M messages on CPU is completely infeasible locally. This is where cloud inference or architectural optimizations become mandatory.
-
-#### Periodic Synthesis Overhead
-
-Every ~50 sessions, a heavier narrative synthesis call runs:
-- Input: ~8,000 tokens (accumulated episodic summaries + current semantic memory)
-- Output: ~2,000 tokens
-
-| Messages | Synthesis Calls | Added Time (RTX 4070, 8B) |
-|----------|:-:|:--|
-| 50K | 20 | ~10 minutes |
-| 100K | 40 | ~20 minutes |
-| 1M | 400 | ~3.3 hours |
-
-Not negligible at scale, but dwarfed by session processing time.
+| RTX 4070 | 8B | 1.86s | 9.23s | **11.09s** |
+| RTX 3060 | 8B | 3.88s | 15.00s | **18.88s** |
+| Apple M2 Pro | 8B | 5.83s | 17.14s | **22.97s** |
+| CPU-only | 8B | 46.60s | 60.00s | **106.60s** |
 
 ---
 
-### Stage 5: Comic Generation
+### Raw vs. Optimized Wall-Clock Times
 
-For completeness — this stage is fast relative to Stage 4.
+#### Raw Processing Times (No Filtering/Batching)
 
-**Script Generation (LLM):**
-- 20-50 scenes selected
-- ~30 seconds per scene (LLM call to write panel script)
-- Total: **10-25 minutes**
+**8B Model — RTX 4070 (11.09s / session):**
 
-**Image Generation (Diffusion model, e.g. SDXL/Flux):**
+| Messages | Sessions | Raw Wall Time | Human Time |
+|----------|:--:|:--:|:--|
+| 50K | 400 | 4,436s | **1.2 hours** |
+| 100K | 800 | 8,872s | **2.5 hours** |
+| 500K | 4,000 | 44,360s | **12.3 hours** |
+| 1M | 8,000 | 88,720s | **24.6 hours** (~1 day) |
 
-| Hardware | Time per Panel | 30 Panels | 50 Panels |
-|----------|:--:|:--:|:--:|
-| RTX 4070 | ~12s | 6 min | 10 min |
-| RTX 3060 | ~20s | 10 min | 17 min |
-| Apple M2 Pro | ~45s | 22 min | 38 min |
-| CPU | ~5 min | 2.5 hrs | 4.2 hrs |
+**8B Model — RTX 3060 (18.88s / session):**
 
-**Panel Composition & Export:** Seconds. Pure image manipulation.
+| Messages | Sessions | Raw Wall Time | Human Time |
+|----------|:--:|:--:|:--|
+| 50K | 400 | 7,552s | **2.1 hours** |
+| 100K | 800 | 15,104s | **4.2 hours** |
+| 500K | 4,000 | 75,520s | **21.0 hours** |
+| 1M | 8,000 | 151,040s | **41.9 hours** (~1.7 days) |
 
-**Bottleneck?** No. 15-45 minutes total on GPU hardware. Not even close to Stage 4.
+**8B Model — CPU Only (106.6s / session):**
+
+| Messages | Sessions | Raw Wall Time | Human Time |
+|----------|:--:|:--:|:--|
+| 50K | 400 | 42,640s | **11.8 hours** |
+| 100K | 800 | 85,280s | **23.7 hours** |
+| 500K | 4,000 | 426,400s | **118.4 hours** (4.9 days) |
+| 1M | 8,000 | 852,800s | **236.9 hours** (9.8 days) |
 
 ---
 
-## Optimization Strategies
+### Optimized Processing Times
 
-The raw numbers are sobering. Here's how to bring them down:
+Applying our benchmark-validated optimization pipeline:
+- **Filtering** (<5 msgs + low richness score): **-42% session count**
+- **Session Batching**: Combines micro-sessions into single context calls
+- **Tiered Output**: Quick sessions receive 50-token summaries instead of 600-token full updates
 
-### 1. Session Filtering
+**Effective multiplier: ~0.30× raw time**
 
-Not every session deserves full LLM analysis. A session with 3 messages saying "ok", "coming", "👍" adds nothing.
-
-**Filter criteria:**
-- Skip sessions with < 5 messages
-- Skip sessions where avg message length < 3 words (logistical chatter)
-- Skip sessions that are purely system messages
-
-**Impact:** Typically eliminates 30-50% of sessions.
-
-### 2. Session Batching
-
-Small sessions (5-15 messages) can be packed together into one LLM call, amortizing the overhead.
-
-**Example:** Three 10-message sessions batched into one call:
-- Without batching: 3 × (4,750 input + 600 output) = 16,050 tokens across 3 calls
-- With batching: 1 × (4,000 overhead + 450 messages + 1,200 output) = 5,650 tokens in 1 call
-- **~65% token reduction** for small sessions
-
-**Impact:** Reduces effective session count by 2-3× for small sessions.
-
-### 3. Tiered Processing
-
-Not every session needs the same depth of analysis.
-
-| Tier | Criteria | Processing | Output |
-|------|----------|-----------|--------|
-| **Quick** | < 15 messages, low intensity | 1-line summary only | ~50 tokens |
-| **Standard** | 15-100 messages | Full session analysis | ~600 tokens |
-| **Deep** | > 100 messages, high intensity, many participants | Extended analysis + moment scoring | ~1,200 tokens |
-
-**Impact:** Reduces average output tokens from 600 to ~300, nearly halving decode time.
-
-### 4. Parallel Independent Analysis
-
-Some LLM tasks don't require sequential processing:
-- **Moment scoring** can happen in parallel after initial sequential pass
-- **Character arc synthesis** for different members can run concurrently
-- **Multiple small models** for simple tasks (summarization) + one larger model for synthesis
-
-### 5. Speculative: Model Distillation
-
-For very large chats: do a first pass with an 8B model for basic extraction, then run a selective second pass with a 14B/70B model only on the most interesting sessions.
-
-### Combined Optimization Estimate
-
-Applying filtering (40% reduction) + batching (2× for small sessions) + tiered output (~50% decode reduction):
-
-**Effective multiplier: ~0.25-0.35× raw time**
-
-| Messages | Raw (4070, 8B) | **Optimized** |
-|----------|:--:|:--:|
-| 50K | 3.1 hrs | **0.8 - 1.1 hrs** |
-| 100K | 6.2 hrs | **1.6 - 2.2 hrs** |
-| 500K | 30.8 hrs | **7.7 - 10.8 hrs** |
-| 1M | 61.7 hrs | **15.4 - 21.6 hrs** |
-| 10M | 616.7 hrs | **154 - 216 hrs** (still 6-9 days) |
+| Messages | Sessions (Filtered) | RTX 4070 Optimized | RTX 3060 Optimized | Cloud Time (nano) |
+|----------|:--:|:--:|:--:|:--:|
+| **50K** | ~230 | **~20 - 25 mins** | **~38 - 45 mins** | **~4 mins** |
+| **100K** | ~460 | **~45 - 55 mins** | **~1.2 - 1.4 hrs** | **~8 mins** |
+| **500K** | ~2,300 | **~3.5 - 4.5 hrs** | **~6.3 - 7.5 hrs** | **~40 mins** |
+| **1M** | ~4,600 | **~7.0 - 8.0 hrs** | **~12.5 - 14.0 hrs** | **~1.5 hrs** |
 
 ---
 
 ## Cloud Inference Comparison
 
-For context, here's what cloud APIs look like:
+Using **GPT-4.1-nano** or **Gemini 2.0 Flash** ($0.10 / 1M input tokens, $0.40 / 1M output tokens):
 
-| Provider | Model | Input Cost (/1M tok) | Output Cost (/1M tok) | Speed (decode tok/s) |
-|----------|-------|:--:|:--:|:--:|
-| OpenAI | GPT-4.1-mini | $0.40 | $1.60 | ~4,000 |
-| OpenAI | GPT-4.1-nano | $0.10 | $0.40 | ~6,000 |
-| Google | Gemini 2.0 Flash | $0.10 | $0.40 | ~3,000 |
-| Anthropic | Claude Haiku 3.5 | $0.80 | $4.00 | ~2,000 |
+- Input per session: 4,660 tokens × $0.10 / 1M = $0.000466
+- Output per session: 600 tokens × $0.40 / 1M = $0.000240
+- **Cost per session:** **~$0.0007**
 
-**Per session cost (4,750 in + 600 out) — using GPT-4.1-nano:**
-- Input: 4,750 × $0.10/1M = $0.000475
-- Output: 600 × $0.40/1M = $0.000240
-- **Total per session: ~$0.0007**
-
-**Per session time:** ~1-2 seconds (dominated by network latency, not compute)
-
-| Messages | Sessions | Cloud Time | Cloud Cost (nano) |
+| Messages | Sessions | Cloud Processing Time | Cloud API Cost (GPT-4.1-nano) |
 |----------|:--:|:--:|:--:|
-| 50K | 1,000 | ~17 min | **$0.72** |
-| 100K | 2,000 | ~33 min | **$1.43** |
-| 500K | 10,000 | ~2.8 hrs | **$7.15** |
-| 1M | 20,000 | ~5.6 hrs | **$14.30** |
-| 10M | 200,000 | ~56 hrs | **$143.00** |
+| **50K** | 400 | ~4 - 7 mins | **$0.28** |
+| **100K** | 800 | ~8 - 15 mins | **$0.56** |
+| **500K** | 4,000 | ~40 - 60 mins | **$2.82** |
+| **1M** | 8,000 | ~1.5 - 2.2 hrs | **$5.65** |
 
 > [!NOTE]
-> Cloud is 10-50× faster than local for the same quality tier. At 10M messages, cloud still takes ~2.3 days but costs ~$143 for a nano-tier model. Rate limits (requests per minute) become the real bottleneck with cloud at scale — at 10K RPM, 200K sessions takes ~20 minutes of pure request time, but sustained throughput will be lower.
+> For a typical 100K group chat (~4-6 months of heavy conversation), cloud processing takes under **15 minutes** and costs **less than $0.60**.
 
 ---
 
-## Summary — Where Does the Time Go?
+## Stage 5: Comic Generation Time
+
+- **Script Generation (LLM):** 20–50 selected scenes × ~20s/scene = **10–20 minutes**.
+- **Image Generation (Diffusion / SDXL / Flux):**
+  - RTX 4070: ~12s / panel × 30 panels = **6 minutes** (50 panels = 10 mins).
+  - RTX 3060: ~20s / panel × 30 panels = **10 minutes** (50 panels = 17 mins).
+- **Composition & Layout:** < 5 seconds.
+
+**Total Comic Generation Time:** **15–30 minutes** on mid-range GPU hardware.
+
+---
+
+## Summary — Pipeline Time Distribution
 
 ```
 For a 100K message chat on an RTX 4070 with an 8B model:
 
-Parsing:            ██ 1 second
-Analytics:          ██ 4 seconds
-Segmentation:       ██ <1 second
-LLM Processing:     ████████████████████████████████████████████████████ 1.6 - 6.2 hours
-Comic Script Gen:   ████ ~15 minutes
-Image Generation:   ██████ ~10 minutes
-Panel Composition:  ██ seconds
+Parsing & Analytics: ██ < 5 seconds
+Segmentation:        ██ < 1 second
+LLM Processing:      ██████████████████████████████████ 45 - 55 minutes (Optimized)
+Comic Script Gen:    ████ ~15 minutes
+Image Generation:    ██████ ~10 minutes
+Panel Composition:   ██ seconds
 
-Total:              ~2 to 7 hours
+Total Pipeline Time: ~1.2 to 1.5 hours
 ```
 
-**The LLM memory processing stage accounts for 95%+ of total processing time.** Everything else combined is under 30 minutes even at 10M messages.
-
-The primary knobs for reducing this:
-1. **Better hardware** (GPU quality directly maps to throughput)
-2. **Smarter session handling** (filter, batch, tier)
-3. **Cloud offloading** (10-50× faster, at monetary cost)
-4. **Smaller output requirements** (less verbose per session, synthesize less often)
-5. **Future: speculative decoding & faster inference engines** (vLLM, SGLang — though these are server-oriented today)
+**Key Conclusions:**
+1. **100K message chats process in under 1.5 hours total** locally on an RTX 4070.
+2. **1M message chats process overnight (~7-8 hours)** locally, or in **~1.5 hours for $5.65** on Cloud.
+3. Memory processing remains 90%+ of total runtime, but empirical token density (5.5 tok/msg) makes local processing significantly faster than initially modeled.
