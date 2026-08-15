@@ -5,9 +5,13 @@ node_modules/
 
 # Build & Compilation outputs
 dist/
+dist-ssr/
 build/
 out/
 *.tsbuildinfo
+src-tauri/target/
+src-tauri/gen/schemas/
+target/
 
 # Logs
 logs/
