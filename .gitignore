@@ -47,3 +47,5 @@ benchmarks/*/references/
 .cache/
 .tmp/
 temp/
+
+benchmarks/chats/

@@ -85,11 +85,19 @@ export function generateBenchmarkReport(filePath: string): BenchmarkReport {
 }
 
 if (process.argv[1] && process.argv[1].endsWith('report.ts')) {
-  const targetFile = path.resolve('../data/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt');
+  const possiblePaths = [
+    // benchmarks/chats/ (current, gitignored)
+    path.resolve(__dirname, '../../../chats/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt'),
+    // benchmarks/chat-stats/data/ (legacy location)
+    path.resolve(__dirname, '../../data/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt'),
+    // works when CWD is the repo root
+    path.resolve('benchmarks/chats/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt')
+  ];
+  const targetFile = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0];
   const report = generateBenchmarkReport(targetFile);
 
   const jsonString = JSON.stringify(report, null, 2);
-  const outputPath = path.resolve('../report.json');
+  const outputPath = path.resolve(__dirname, '../../report.json');
   fs.writeFileSync(outputPath, jsonString, 'utf8');
 
   if (process.argv.includes('--stdout')) {

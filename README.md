@@ -1,25 +1,38 @@
 # Yapbook
 
+> **Status: Pre-implementation — Architecture & Planning Phase**
+
 Turn group chat histories into comic-book memories.
 
-Yapbook is a native desktop application that takes a WhatsApp group chat export and transforms it into illustrated comic panels — capturing the moments, dynamics, and personalities that make your friend group unique.
+Yapbook is a native desktop application that takes a WhatsApp group chat export and transforms it into illustrated comic book stories — capturing the moments, dynamics, personalities, and inside jokes that make your friend group unique.
+
+---
 
 ## How It Works
 
-1. **Export** your WhatsApp group chat as a `.zip` file
-2. **Import** it into Yapbook
-3. The app parses, analyzes, and processes your chat through three phases:
+1. **Import** your WhatsApp group chat export (`.zip` / `.txt`).
+2. **Deterministic Preprocessing** — Cleans and normalizes messages, builds social interaction heatmaps, and segments conversations into coherent episodes.
+3. **LLM Memory & Event Extraction** — Extracts memorable narrative events, builds evolving member profiles, and tracks running jokes — all with complete source message provenance.
+4. **Storyboard & Comic Studio** — Converts events into panel-by-panel comic scripts, generates consistent character illustrations, and composites speech bubbles and layouts into an illustrated comic book.
 
-   **Parsing & Analytics** — Clean up and structure the raw chat export, then compute detailed statistics and visualizations about your group's messaging patterns.
+---
 
-   **LLM Memory Processing** — Break the chat into sessions and process them sequentially through a local LLM, building up layered memory about member personalities, relationships, group culture, and narrative arcs over time.
+## Technology Stack
 
-   **Comic Generation** — Select the best moments, design consistent characters informed by member profiles, and generate illustrated comic panels with dialogue adapted from actual conversations.
+| Layer                | Technology                                     | Notes                                                                                 |
+| :------------------- | :--------------------------------------------- | :------------------------------------------------------------------------------------ |
+| **Desktop Shell**    | [Tauri v2](https://v2.tauri.app/)              | ~20 MB installer, ~60 MB RAM footprint, capability-based IPC security                 |
+| **Frontend**         | React 19, TypeScript, Vite, TailwindCSS        | HTML5 Web Canvas / Fabric.js for interactive comic layouts                            |
+| **Core Engine**      | Rust (`tokio`, `rusqlite`, `reqwest`, `serde`) | Supervisor, pipeline orchestration, state machine, native compositor                  |
+| **Persistence**      | SQLite in WAL mode                             | Single Database Writer Actor pattern, resumable crash-safe state                      |
+| **Local LLM**        | `llama-server` (`llama.cpp`) sidecar           | Quantized GGUF models — v1 default: Qwen 2.5 7B Q4_K_M, swappable via `ModelManifest` |
+| **Image Generation** | Cloud API (fal.ai / Replicate Flux)            | Privacy-first anonymization; character turnaround consistency; style presets          |
+| **Compositing**      | Web Canvas + Rust `image` crate                | Interactive preview in browser; print-ready 300 DPI PDF/PNG export in Rust            |
 
-## Privacy
+---
 
-Yapbook is privacy-first. Chat data stays on your machine and is processed using locally running models.
+## Privacy & Safety
 
-## Status
-
-Early design phase. See [`docs/`](docs/) for architecture documentation.
+- **Local-First** — Chat processing, analytics, and memory extraction run 100 % locally.
+- **Privacy Boundary** — Cloud image prompts are scrubbed of real names, quotes, and identifiers before dispatch (`Character A (young man, hoodie, glasses)`).
+- **Zero Telemetry on Messages** — Raw chat data, prompts, and extracted memories never leave your computer.s

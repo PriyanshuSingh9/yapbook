@@ -8,16 +8,24 @@ import { getDetailedSessions } from './sessions';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const chatFilePath = path.resolve('../data/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt');
+const possibleChatPaths = [
+  // benchmarks/chats/ (current, gitignored)
+  path.resolve(__dirname, '../../../chats/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt'),
+  // benchmarks/chat-stats/data/ (legacy location)
+  path.resolve(__dirname, '../../data/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt'),
+  // works when CWD is the repo root
+  path.resolve('benchmarks/chats/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt')
+];
+const chatFilePath = possibleChatPaths.find(p => fs.existsSync(p)) || possibleChatPaths[0];
 
-console.log('Parsing chat file and generating analytics report...');
+console.log(`Parsing chat file from ${chatFilePath} and generating analytics report...`);
 const startT = Date.now();
 const report = generateBenchmarkReport(chatFilePath);
 const parsedData = parseWhatsAppExport(chatFilePath);
 console.log(`Analytics computed in ${Date.now() - startT}ms.`);
 
 // Serve static frontend files
-app.use(express.static(path.resolve('public')));
+app.use(express.static(path.resolve(__dirname, '../public')));
 app.use(express.json());
 
 // API Endpoints

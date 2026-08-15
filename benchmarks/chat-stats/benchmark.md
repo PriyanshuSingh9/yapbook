@@ -18,7 +18,7 @@ A TypeScript + Node.js tool that:
 
 ### Test Data
 
-- **File:** `data/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt`
+- **File:** `benchmarks/chats/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt`
 - **Format:** Android export — `DD/MM/YY, H:MM am/pm - Sender: Message`
 - **Size:** ~7MB, ~137K lines, ~126K messages
 - **Timespan:** October 2024 – February 2025 (~4 months)
@@ -27,7 +27,7 @@ A TypeScript + Node.js tool that:
 
 ### Reference Repositories
 
-Clone these into `benchmarks/lang_perf/references/` for parsing and analysis ideas:
+Clone these into `benchmarks/chat-stats/references/` for parsing and analysis ideas:
 
 ```bash
 git clone https://github.com/irfanchahyadi/Whatsapp-Chat-Analyzer.git references/irfan-analyzer
@@ -43,12 +43,11 @@ Study their parsing regex patterns and analytics approaches. **Do not use them a
 ### Directory Structure
 
 ```
-benchmarks/lang_perf/
+benchmarks/chat-stats/
 ├── benchmark.md              # Benchmark specification
 ├── conclusion.md             # Empirical findings & validation
 ├── report.json               # Generated report JSON
-├── data/                     # Chat export files
-├── references/               # Cloned reference repos
+├── references/               # Cloned reference repos (optional, gitignored)
 │   ├── irfan-analyzer/
 │   └── koftezz-analyzer/
 └── code/                     # Implementation codebase
@@ -65,6 +64,8 @@ benchmarks/lang_perf/
     │   └── app.js
     ├── package.json
     └── tsconfig.json
+
+Chat data lives outside this tree in `benchmarks/chats/` (gitignored — private WhatsApp data).
 ```
 
 ### Tech Stack
@@ -85,8 +86,8 @@ benchmarks/lang_perf/
 }
 ```
 
-- `npm run dev` — starts the web server with the UI
-- `npm run analyze` — runs analysis and outputs JSON report to stdout
+- `pnpm run dev` — starts the web server with the UI (run from `code/`)
+- `pnpm run analyze` — runs analysis and writes the JSON report to `benchmarks/chat-stats/report.json` (add `--stdout` to print it to stdout instead)
 
 ---
 
@@ -392,7 +393,7 @@ After running all experiments, compute a **comparison table** with one row per e
 Also compute for the **recommended strategy** (30-min inactivity gap, which is our architecture doc default):
 
 - **Token estimates** using the formula from `docs/processing-times.md`:
-  - Input tokens per session: `4000 (overhead) + (avgMessagesPerSession × 15)`
+  - Input tokens per session: `4000 (overhead) + (avgMessagesPerSession × 5.1)` — 5.1 tok/msg is the measured average from this chat; `× 15` was the pre-benchmark assumption
   - Output tokens per session: `600`
   - Total input tokens: `sessionCount × inputTokensPerSession`
   - Total output tokens: `sessionCount × 600`
@@ -575,7 +576,7 @@ interface BenchmarkReport {
 }
 ```
 
-Also write this report to `benchmarks/lang_perf/report.json`.
+Also write this report to `benchmarks/chat-stats/report.json`.
 
 ---
 
@@ -604,7 +605,7 @@ After running the benchmark and reviewing results in the web UI, fill `conclusio
 
 ## 9. Execution Checklist
 
-- [ ] Clone reference repos into `references/`
+- [ ] Clone reference repos into `benchmarks/chat-stats/references/`
 - [ ] Initialize Node.js project with TypeScript
 - [ ] Implement parser with extended message fields (tokens, shape, language, mentions)
 - [ ] Validate parser against the actual chat file

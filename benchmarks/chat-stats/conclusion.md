@@ -1,7 +1,7 @@
 # Yapbook Chat Benchmark — Conclusion & Empirical Validation
 
 > **Date:** August 12, 2026  
-> **Target Dataset:** `data/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt` (6.67 MB, 137,735 lines)  
+> **Target Dataset:** `benchmarks/chats/WhatsApp Chat with आंतरिक मित्र मंडल (antarik).txt` (6.67 MB, 137,735 lines)  
 > **Timespan:** October 7, 2024 – February 6, 2025 (~4 months)  
 > **Status:** Complete
 
@@ -37,16 +37,16 @@
 
 | Member | Messages | Share % | Avg Chars | Avg Words | Short Msg % (≤3w) | Emoji Total | Avg Tokens | Active Days | Session Initiations |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Ashwani** | 31,667 | 25.21% | 23.8 | 4.6 | 58.4% | 7,654 | 6.0 | 122 | 342 |
-| **Bharti Mait** | 19,875 | 15.82% | 19.5 | 3.8 | 63.8% | 3,892 | 4.9 | 121 | 184 |
-| **Priyanshu** | 19,259 | 15.33% | 20.1 | 3.9 | 62.1% | 3,745 | 5.0 | 119 | 148 |
-| **Vansh** | 17,135 | 13.64% | 18.9 | 3.7 | 64.9% | 3,812 | 4.7 | 118 | 124 |
-| **Shagun Mait** | 9,726 | 7.74% | 20.4 | 4.0 | 61.2% | 2,410 | 5.1 | 114 | 72 |
-| **Aaditya** | 9,033 | 7.19% | 18.7 | 3.6 | 66.4% | 1,840 | 4.7 | 115 | 68 |
-| **Kanishka Bhardwaj** | 8,347 | 6.65% | 18.2 | 3.5 | 67.1% | 1,620 | 4.6 | 112 | 51 |
-| **Praneel Mait** | 7,140 | 5.68% | 19.1 | 3.7 | 64.2% | 1,480 | 4.8 | 110 | 31 |
-| **Sumit** | 3,237 | 2.58% | 19.8 | 3.8 | 62.5% | 680 | 5.0 | 85 | 6 |
-| **Meta AI** | 178 | 0.14% | 145.2 | 26.4 | 4.5% | 12 | 36.3 | 24 | 0 |
+| **Ashwani** | 31,667 | 25.21% | 19.4 | 3.9 | 60.0% | 10,997 | 4.9 | 121 | 205 |
+| **Bharti Mait** | 19,875 | 15.82% | 15.4 | 3.1 | 71.2% | 6,266 | 3.9 | 120 | 106 |
+| **Priyanshu** | 19,259 | 15.33% | 19.8 | 3.6 | 70.6% | 14,770 | 5.0 | 121 | 102 |
+| **Vansh** | 17,135 | 13.64% | 20.4 | 3.9 | 62.6% | 6,581 | 5.1 | 123 | 164 |
+| **Shagun Mait** | 9,726 | 7.74% | 25.0 | 4.8 | 52.9% | 3,364 | 6.3 | 118 | 70 |
+| **Aaditya** | 9,033 | 7.19% | 24.4 | 4.8 | 49.6% | 1,076 | 6.1 | 117 | 205 |
+| **Kanishka Bhardwaj** | 8,347 | 6.65% | 20.1 | 4.1 | 58.5% | 3,275 | 5.0 | 116 | 40 |
+| **Praneel Mait** | 7,140 | 5.68% | 20.3 | 3.7 | 68.8% | 3,105 | 5.1 | 120 | 113 |
+| **Sumit** | 3,237 | 2.58% | 28.1 | 4.9 | 53.1% | 818 | 7.0 | 109 | 17 |
+| **Meta AI** | 178 | 0.14% | 217.3 | 35.5 | 41.0% | 2 | 54.4 | 26 | 0 |
 
 ---
 
@@ -58,7 +58,7 @@
 | **Avg Msgs / Session (30-min)**| 50 msgs / session | **122.4 msgs / session** | **+144% msgs per session** — Messages arrive in dense rapid bursts. |
 | **Total Session Count (30-min)**| ~2,500 sessions | **1,026 sessions** | **-59% fewer sessions** to summarize. |
 | **Filterable Sessions (<5 msgs)**| ~10-15% | **294 sessions (28.6%)** | **High noise filterability** — 28.6% of sessions carry negligible content and can be skipped or batched. |
-| **Noise Message Ratio** | ~20% | **35.7%** | **35.7% of messages** are single words, emoji-only, deleted, or media placeholders. |
+| **Noise Message Ratio** | ~20% | **38.5%** | **38.5% of messages** are single words, emoji-only, deleted, or media placeholders. |
 | **Total Input Tokens (30-min)** | ~11.2M tokens | **4.74M tokens** | **-58% reduction in LLM compute load**. |
 | **RTX 4070 Optimized Time** | ~3.5 hours | **0.95 hours (~57 mins)** | Processable in **under 1 hour** on standard mid-range GPU! |
 | **Cloud API Cost (GPT-4.1-nano)**| ~$2.50 | **$0.72** | Extremely affordable cloud fallback. |
@@ -67,9 +67,10 @@
 
 ## 4. Language Analysis
 
-- **Hinglish Ratio:** **37.8%** of messages mix Hindi vocabulary with English/Latin script.
-- **English Ratio:** **52.2%** of messages are standard English text/slang.
-- **Pure Devanagari Hindi Ratio:** **0.3%** of messages.
+- **Hinglish Ratio:** **31.7%** of messages mix Hindi vocabulary with English/Latin script.
+- **English Ratio:** **56.5%** of messages are standard English text/slang.
+- **Pure Devanagari Hindi Ratio:** **0.2%** of messages.
+- **Other / Unclassified Ratio:** **11.5%** of messages (mostly numbers, links, or minimal content).
 - **Devanagari Character Ratio:** **< 0.1%** of total characters.
 
 ### Model Selection Implications
@@ -81,14 +82,14 @@ The chat is heavily code-switched Hinglish (`"mereko explanation Dene ki zarurat
 
 | Strategy | Threshold | Session Count | Avg Msgs | Median Msgs | &lt; 5 Msgs | &gt; 100 Msgs | Avg Duration | Filterable % |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Inactivity Gap** | 5min | 3,659 | 34.3 | 4 | 1,837 | 262 | 14.2m | 50.2% |
-| **Inactivity Gap** | 10min | 2,324 | 54.0 | 7 | 965 | 263 | 24.8m | 41.5% |
-| **Inactivity Gap** | 15min | 1,782 | 70.5 | 10 | 638 | 260 | 34.5m | 35.8% |
-| **Inactivity Gap** | **30min (Default)**| **1,026** | **122.4** | **16** | **294** | **229** | **68.2m** | **28.6%** |
-| **Inactivity Gap** | 60min | 555 | 226.3 | 36 | 129 | 202 | 145.1m | 23.2% |
-| **Inactivity Gap** | 120min | 247 | 508.5 | 164 | 38 | 143 | 342.8m | 15.4% |
-| **Time-of-Day Aware**| 30min | 1,154 | 108.8 | 14 | 349 | 239 | 59.4m | 30.2% |
-| **Participant Shift**| 30min (N=10) | 6,757 | 18.6 | 9 | 305 | 145 | 18.4m | 4.5% |
+| **Inactivity Gap** | 5min | 3,659 | 34.3 | 4 | 1,837 | 262 | 7.5m | 50.2% |
+| **Inactivity Gap** | 10min | 2,324 | 54.0 | 7 | 965 | 263 | 16.3m | 41.5% |
+| **Inactivity Gap** | 15min | 1,782 | 70.5 | 10 | 638 | 260 | 25.1m | 35.8% |
+| **Inactivity Gap** | **30min (Default)**| **1,026** | **122.4** | **16** | **294** | **229** | **59.4m** | **28.6%** |
+| **Inactivity Gap** | 60min | 555 | 226.3 | 36 | 129 | 202 | 146.3m | 23.2% |
+| **Inactivity Gap** | 120min | 247 | 508.5 | 164 | 38 | 143 | 434.7m | 15.4% |
+| **Time-of-Day Aware**| 30min | 1,154 | 108.8 | 14 | 349 | 239 | 50.4m | 30.2% |
+| **Participant Shift**| 30min (N=10) | 6,757 | 18.6 | 9 | 305 | 145 | 8.3m | 4.5% |
 
 ### Strategy Recommendation
 - **30-minute Inactivity Gap remains the optimal default.**
@@ -150,7 +151,7 @@ For processing the full 4-month chat dataset (125,597 messages):
 
 ## 11. Recommendations for Architecture (`docs/architecture.md`)
 
-1. **Update Token Estimator Default:** Change assumed message token length from 15 to **5.5 tokens/msg** for WhatsApp exports.
+1. **Update Token Estimator Default:** Change assumed message token length from 15 to **5.1 tokens/msg** for WhatsApp exports.
 2. **Implement Dual-Tier Session Filtering:** Strip sessions with <5 messages OR low richness score before calling LLM pipelines.
 3. **Mandatory Hinglish Support:** Require LLM models to have verified code-switching capability (Qwen 2.5 / Gemma 2 / Llama 3.1).
 4. **Sub-Burst Splitting:** For long sessions (>150 messages), split at sub-burst pauses (>3 mins) to keep prompt tokens bounded under 8K.
