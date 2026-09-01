@@ -15,3 +15,5 @@ pub mod models;
 pub use models::*;
 
 pub mod commands;
+
+pub mod parser;
