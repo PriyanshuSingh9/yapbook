@@ -49,10 +49,10 @@ Each entry lists what the contract carries, who produces/consumes it, which feat
 
 ### `analytics.ts` — AnalyticsReport
 
-- **Carries:** the full statistical report: volume, temporal, per-member, social, content, milestones, token/shape, language.
+- **Carries:** the full statistical report: volume, temporal, per-member, social, content, milestones, token/shape.
 - **Producer:** Priyanshu (P3) · **Consumer:** Ashwani (A2)
-- **Draft:** mirrors the committed `benchmarks/chat-stats/report.json` structure:
-  `volumeMetrics`, `temporalMetrics`, `memberMetrics` (keyed by sender), `socialMetrics`, `contentMetrics`, `milestones`, `tokenAndShapeMetrics`, `languageMetrics`.
+- **Draft:** mirrors the committed `benchmarks/chat-stats/report.json` structure (excluding language metrics, see D-009):
+  `volumeMetrics`, `temporalMetrics`, `memberMetrics` (keyed by sender), `socialMetrics`, `contentMetrics`, `milestones`, `tokenAndShapeMetrics`.
 - **Mock:** `benchmarks/chat-stats/report.json` is the canonical fixture for A2.
 
 ---
@@ -65,7 +65,7 @@ Each entry lists what the contract carries, who produces/consumes it, which feat
   ```ts
   interface Session {
     id: number;
-    projectId: string;
+    groupId: string;
     startTime: number; // UTC epoch seconds
     endTime: number;
     messageCount: number;

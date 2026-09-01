@@ -144,3 +144,18 @@ Template:
 **Alternatives rejected:** adaptive time-of-day gaps (complexity without measured benefit), participant-shift segmentation (over-segments rapid multi-way banter).
 
 **Consequences:** ~58 % of sessions reach the LLM; the P25 threshold is relative to each dataset, so the ratio may shift on sparser chats.
+
+---
+
+## D-009 — Hardware-profile model handbook over message-level language detection
+
+- **Status:** Accepted
+- **Date:** 2026-09
+
+**Context:** The initial design included `Language` classification per message to flag Hinglish chats and guide LLM model selection. However, language metrics add little visual or analytical value for users, and model selection in local-first apps is fundamentally constrained by host system hardware (VRAM, RAM, GPU backend), not chat language. Tools like Odysseus (PewDiePie's local AI agent workspace) select and tune models using system hardware profiles and user-guided handbooks.
+
+**Decision:** Drop `Language` from the `Message` struct and remove `languageMetrics` from the statistical analytics engine. LLM model selection and quantization settings are governed by a host hardware handbook and hardware detection (Feature P6 / P12).
+
+**Alternatives rejected:** Per-message Unicode script and Hinglish dictionary scanning (unnecessary computation and struct overhead for unneeded metrics).
+
+**Consequences:** `Message` struct is leaner. The parser and single-pass accumulator avoid dictionary matching and character classification loops. Model selection remains focused on hardware constraints.

@@ -118,16 +118,14 @@ A high-throughput streaming parser that yields messages one-by-one from a WhatsA
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     pub id: i64,
-    pub project_id: String,
+    pub group_id: String,
     pub timestamp: i64,         // UTC Epoch seconds
     pub sender: String,
     pub content: String,
     pub msg_type: MessageType,  // Text, System, Deleted, Link, MediaOmitted
     pub char_count: u32,
     pub word_count: u32,
-    pub estimated_tokens: f32,  // char_count / 4.0 — rough heuristic, not exact for Hinglish
     pub shape: MessageShape,    // EmojiOnly, SingleWord, Short, Medium, Long, Placeholder
-    pub language: Language,
 }
 ```
 
@@ -155,7 +153,7 @@ pub struct Message {
 
 ### What You're Building
 
-Deterministic analytics engine computing 15 metric categories in a single O(N) pass. No LLM involved — pure stats.
+Deterministic analytics engine computing statistical metric categories in a single O(N) pass. No LLM involved — pure stats.
 
 ### Key Decisions to Make
 
@@ -170,8 +168,7 @@ Deterministic analytics engine computing 15 metric categories in a single O(N) p
 2. Temporal (7×24 hourly heatmap, busiest day, longest silence gap)
 3. Member participation (per-member word count, emoji count, active days)
 4. Social interaction (N×N directional reply matrix, ghosting ratios)
-5. Language (Hinglish code-switching detection, Devanagari character ratio)
-6. Milestones (first message, 10 k / 50 k timestamps, group creation)
+5. Milestones (first message, 10 k / 50 k timestamps, group creation)
 
 ### Edge Cases to Handle
 
@@ -207,7 +204,7 @@ The durability layer. All pipeline state goes through a single writer actor over
 ### Core Schema (Initial)
 
 ```sql
-CREATE TABLE projects (
+CREATE TABLE groups (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     created_at INTEGER NOT NULL
@@ -215,17 +212,16 @@ CREATE TABLE projects (
 
 CREATE TABLE messages (
     id INTEGER PRIMARY KEY,
-    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     timestamp INTEGER NOT NULL,
     sender TEXT NOT NULL,
     content TEXT NOT NULL,
-    msg_type TEXT NOT NULL,
-    estimated_tokens REAL NOT NULL
+    msg_type TEXT NOT NULL
 );
 
 CREATE TABLE sessions (
     id INTEGER PRIMARY KEY,
-    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     start_time INTEGER NOT NULL,
     end_time INTEGER NOT NULL,
     message_count INTEGER NOT NULL,
